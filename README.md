@@ -18,7 +18,7 @@ Use [OpenCode](https://opencode.ai) with your [Claude Max](https://claude.ai) su
 
 ## Quick Start
 
-There are two ways to get started: the **plugin** (recommended) or the **standalone installer**.
+There are three ways to get started: the **plugin** (recommended), the **standalone installer**, or **Docker**.
 
 ### Option A: OpenCode Plugin (recommended)
 
@@ -81,9 +81,29 @@ oc
 
 The `oc` command starts the proxy in the background, waits for it to be ready, and launches OpenCode.
 
+### Option C: Docker
+
+Run everything in a container with the OpenCode web UI exposed on port 4096.
+
+```bash
+git clone https://github.com/ianjwhite99/opencode-with-claude.git
+cd opencode-with-claude
+
+# Build and start
+docker compose -f docker/docker-compose.yml up -d
+
+# Authenticate (first time only)
+docker exec -it -u opencode opencode-with-claude claude login
+
+# Open the web UI
+open http://localhost:4096
+```
+
+The container runs the proxy and OpenCode web UI together. Your `~/workspace` directory is mounted into the container, and Claude auth, OpenCode data, and config are persisted across restarts via Docker volumes.
+
 ## Prerequisites
 
-- **Node.js >= 18** — [nodejs.org](https://nodejs.org) (or Bun/Deno)
+- **Node.js >= 18** — [nodejs.org](https://nodejs.org) (or Bun/Deno) — not needed for Docker
 - **Claude Max subscription** — the $100/mo plan on [claude.ai](https://claude.ai)
 
 ## `oc` Launcher Reference
@@ -133,9 +153,10 @@ npm uninstall -g @anthropic-ai/claude-code opencode-ai opencode-claude-max-proxy
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CLAUDE_PROXY_PORT` | `3456` (plugin) / random (`oc`) | Port for the proxy server |
+| `CLAUDE_PROXY_PORT` | `3456` (plugin/Docker) / random (`oc`) | Port for the proxy server |
 | `CLAUDE_PROXY_WORKDIR` | `$PWD` | Working directory for the proxy |
 | `OC_SKIP_AUTH_CHECK` | unset | Set to `1` to skip Claude auth check on `oc` launch |
+| `OC_AUTO_UPDATE` | unset | Set to `true` or `1` to auto-update components on Docker container start |
 
 ## Troubleshooting
 
@@ -167,16 +188,15 @@ The proxy takes a moment to initialize. If this persists:
 
 ### Updating components
 
-With the `oc` launcher:
-
 ```bash
+# oc launcher
 oc update
-```
 
-With the plugin, update the underlying packages directly:
-
-```bash
+# Plugin / manual
 npm install -g @anthropic-ai/claude-code opencode-ai opencode-claude-max-proxy
+
+# Docker
+docker compose -f docker/docker-compose.yml build --no-cache && docker compose -f docker/docker-compose.yml up -d
 ```
 
 ## Development
@@ -189,6 +209,10 @@ opencode-with-claude/
 │   └── index.ts           # Plugin entry point
 ├── bin/
 │   └── oc                 # Standalone launcher
+├── docker/
+│   ├── Dockerfile         # All-in-one Docker image
+│   ├── docker-compose.yml # Docker Compose config
+│   └── entrypoint.sh      # Docker entrypoint
 ├── install.sh             # curl | bash installer
 ├── test/
 │   ├── run.sh             # Test runner
@@ -221,9 +245,9 @@ No. The proxy authenticates through your Claude Max subscription via `claude log
 
 The proxy will fail to authenticate. Run `claude auth status` to check. You'll need an active Claude Max ($100/mo) or Claude Max with Team ($200/mo) subscription.
 
-**Plugin or `oc` — which should I use?**
+**Plugin, `oc`, or Docker — which should I use?**
 
-The plugin is recommended if you already use OpenCode. It integrates with OpenCode's plugin system and requires no extra commands. Use the `oc` launcher if you want a one-command install from scratch or prefer not to edit config files.
+The **plugin** is recommended if you already use OpenCode — it integrates with OpenCode's plugin system and requires no extra commands. Use the **`oc` launcher** if you want a one-command install from scratch or prefer not to edit config files. Use **Docker** if you want an isolated environment or want to run the web UI as a service.
 
 **Can I use this with multiple projects at the same time?**
 
