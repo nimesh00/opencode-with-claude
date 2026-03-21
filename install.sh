@@ -140,12 +140,14 @@ fi
 # =============================================================================
 
 echo ""
-echo -e "${BOLD}  ┌──────────────────────────────────────────┐${NC}"
-echo -e "${BOLD}  │       opencode-with-claude installer      │${NC}"
-echo -e "${BOLD}  │                                            │${NC}"
-echo -e "${BOLD}  │  ${MUTED}OpenCode + Claude Max Proxy${NC}${BOLD}               │${NC}"
-echo -e "${BOLD}  │  ${MUTED}Use your Claude Max sub with OpenCode${NC}${BOLD}     │${NC}"
-echo -e "${BOLD}  └──────────────────────────────────────────┘${NC}"
+_BW=52
+_bline() { printf "${BOLD}  │${NC} %-${_BW}s ${BOLD}│${NC}\n" "$1"; }
+echo -e "${BOLD}  ┌$(printf '─%.0s' $(seq 1 $((_BW+2))))┐${NC}"
+_bline "       opencode-with-claude installer"
+_bline ""
+_bline "  OpenCode + Claude Max Proxy"
+_bline "  Use your Claude Max sub with OpenCode"
+echo -e "${BOLD}  └$(printf '─%.0s' $(seq 1 $((_BW+2))))┘${NC}"
 echo ""
 
 # =============================================================================
@@ -462,18 +464,22 @@ fi
 # =============================================================================
 
 echo ""
-echo -e "${GREEN}${BOLD}  ┌──────────────────────────────────────────┐${NC}"
-echo -e "${GREEN}${BOLD}  │          Installation complete!           │${NC}"
-echo -e "${GREEN}${BOLD}  │                                            │${NC}"
-echo -e "${GREEN}${BOLD}  │  ${NC}${BOLD}To start:${NC}${GREEN}${BOLD}                                │${NC}"
-echo -e "${GREEN}${BOLD}  │  ${NC}  cd your-project${GREEN}${BOLD}                        │${NC}"
-echo -e "${GREEN}${BOLD}  │  ${NC}  oc${GREEN}${BOLD}                                      │${NC}"
-echo -e "${GREEN}${BOLD}  │                                            │${NC}"
-echo -e "${GREEN}${BOLD}  │  ${NC}${BOLD}Web UI:${NC}${GREEN}${BOLD}                                  │${NC}"
-echo -e "${GREEN}${BOLD}  │  ${NC}  oc web${GREEN}${BOLD}                                  │${NC}"
-echo -e "${GREEN}${BOLD}  │                                            │${NC}"
-echo -e "${GREEN}${BOLD}  │  ${NC}${MUTED}Docs: github.com/$REPO${NC}${GREEN}${BOLD}  │${NC}"
-echo -e "${GREEN}${BOLD}  └──────────────────────────────────────────┘${NC}"
+_W=52
+_line() { printf "${GREEN}${BOLD}  │${NC} %-${_W}s ${GREEN}${BOLD}│${NC}\n" "$1"; }
+echo -e "${GREEN}${BOLD}  ┌$(printf '─%.0s' $(seq 1 $((_W+2))))┐${NC}"
+_line ""
+_line "        Installation complete!"
+_line ""
+_line "  To start:"
+_line "    cd your-project"
+_line "    oc"
+_line ""
+_line "  Web UI:"
+_line "    oc web"
+_line ""
+_line "  Docs: github.com/$REPO"
+_line ""
+echo -e "${GREEN}${BOLD}  └$(printf '─%.0s' $(seq 1 $((_W+2))))┘${NC}"
 echo ""
 
 current_shell_name=$(basename "${SHELL:-bash}")
