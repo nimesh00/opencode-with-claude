@@ -156,10 +156,6 @@ docker exec -it -u opencode opencode-with-claude claude auth status
 
 # Run opencode commands inside the container
 docker exec -it -u opencode opencode-with-claude opencode auth list
-
-# Or use the convenience wrappers (symlink to your PATH)
-ln -s "$(pwd)/bin/claude" ~/.local/bin/claude
-ln -s "$(pwd)/bin/opencode" ~/.local/bin/opencode
 ```
 
 ## Configuration
