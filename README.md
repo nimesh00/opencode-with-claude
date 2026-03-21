@@ -1,5 +1,9 @@
 # opencode-with-claude
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/ianjwhite99/opencode-with-claude)](https://github.com/ianjwhite99/opencode-with-claude/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/ianjwhite99/opencode-with-claude)](https://github.com/ianjwhite99/opencode-with-claude/issues)
+
 Use [OpenCode](https://opencode.ai) with your [Claude Max](https://claude.ai) subscription — no API credits needed.
 
 One command to install. One command to run.
@@ -44,6 +48,16 @@ That's it. The `oc` command starts the proxy in the background, waits for it to 
 - **Node.js >= 18** — [nodejs.org](https://nodejs.org)
 - **Claude Max subscription** — the $100/mo plan on [claude.ai](https://claude.ai)
 - **curl** — for proxy health checks (pre-installed on most systems)
+
+### Supported Platforms
+
+| Platform | Native | Docker |
+|----------|--------|--------|
+| macOS (Intel & Apple Silicon) | Yes | Yes |
+| Linux (x86_64 & arm64) | Yes | Yes |
+| Windows (WSL2) | Yes | Yes |
+
+Windows requires [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install). Native Windows (cmd/PowerShell) is not supported.
 
 ## Install Methods
 
@@ -223,7 +237,21 @@ CLAUDE_PROXY_PORT=3456 oc
 npm update -g @anthropic-ai/claude-code opencode-ai opencode-claude-max-proxy
 ```
 
-Or re-run the installer — it's idempotent and will update existing installations.
+Or re-run the installer, which will update all components.
+
+## Uninstalling
+
+Remove the `oc` launcher and clean up PATH entries:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ianjwhite99/opencode-with-claude/main/install.sh | bash -s -- --uninstall
+```
+
+This removes the `oc` launcher from `~/.opencode/bin` and cleans up any PATH entries added to your shell config. To also remove the underlying tools:
+
+```bash
+npm uninstall -g @anthropic-ai/claude-code opencode-ai opencode-claude-max-proxy
+```
 
 ## Project Structure
 
@@ -243,9 +271,45 @@ opencode-with-claude/
     └── opencode         # Docker wrapper for opencode CLI
 ```
 
+## FAQ
+
+**Do I need an Anthropic API key?**
+
+No. The proxy authenticates through your Claude Max subscription via `claude login`. The `ANTHROPIC_API_KEY=dummy` value is just a placeholder that OpenCode requires to be set — it's never actually used.
+
+**Does this work with [oh-my-opencode](https://github.com/nichochar/oh-my-opencode)?**
+
+Yes. The proxy runs in passthrough mode by default, which means OpenCode handles all tool execution and agent routing. Any agents you configure (including oh-my-opencode's multi-model routing) work as expected.
+
+**What happens if my Claude Max subscription expires?**
+
+The proxy will fail to authenticate. Run `claude auth status` to check. You'll need an active Claude Max ($100/mo) or Claude Max with Team ($200/mo) subscription.
+
+**Can I use this with multiple projects at the same time?**
+
+Yes. The `oc` launcher assigns a random port for each terminal session, so you can run multiple instances in different project directories simultaneously.
+
+**Is this the same as using the Anthropic API?**
+
+Not exactly. The proxy translates between the Anthropic REST API format and the Claude Agent SDK. From OpenCode's perspective it looks like the API, but under the hood it uses your Claude Max session. Rate limits are determined by your Claude Max subscription, not API tier limits.
+
+**Why `claude login` instead of an API key?**
+
+Claude Max doesn't provide API access. Authentication goes through the Claude Code CLI's OAuth flow, which grants an Agent SDK session token tied to your subscription.
+
 ## Disclaimer
 
-This project is **unofficial** and not affiliated with Anthropic or OpenCode. It uses Anthropic's public npm packages with your own authenticated account. Whether this complies with Anthropic's Terms of Service is your responsibility to determine.
+This project is an **unofficial wrapper** around Anthropic's publicly available Claude Agent SDK and OpenCode. It is not affiliated with, endorsed by, or supported by Anthropic or OpenCode.
+
+**Use at your own risk.** The authors make no claims regarding compliance with Anthropic's Terms of Service. It is your responsibility to review and comply with Anthropic's [Terms of Service](https://www.anthropic.com/terms) and [Authorized Usage Policy](https://www.anthropic.com/aup). Terms may change at any time.
+
+This project calls publicly available npm packages using your own authenticated account. No API keys are intercepted, no authentication is bypassed, and no proprietary systems are reverse-engineered.
+
+## Credits
+
+Built on top of [opencode-claude-max-proxy](https://github.com/rynfar/opencode-claude-max-proxy) by [@rynfar](https://github.com/rynfar), which provides the core proxy that bridges the Anthropic Agent SDK to the standard API. This project wraps that proxy with a streamlined installer and launcher to make setup as easy as possible.
+
+Powered by the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) by Anthropic and [OpenCode](https://opencode.ai).
 
 ## License
 
