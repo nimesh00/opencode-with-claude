@@ -482,14 +482,6 @@ case "$current_shell_name" in
     *)    rc_file="~/.bashrc" ;;
 esac
 
-current_shell_name=$(basename "${SHELL:-bash}")
-rc_file=""
-case "$current_shell_name" in
-    zsh)  rc_file="~/.zshrc" ;;
-    fish) rc_file="~/.config/fish/config.fish" ;;
-    *)    rc_file="~/.bashrc" ;;
-esac
-
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
     echo -e "  ${YELLOW}To use oc now, run:${NC}"
     echo ""

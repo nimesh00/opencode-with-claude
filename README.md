@@ -96,7 +96,7 @@ cd opencode-with-claude
 docker compose up -d
 
 # Authenticate (first time only)
-docker exec -it opencode-with-claude claude login
+docker exec -it -u opencode opencode-with-claude claude login
 
 # Access web UI
 open http://localhost:4096
@@ -151,11 +151,11 @@ docker compose up -d
 open http://localhost:4096
 
 # Run claude commands inside the container
-docker exec -it opencode-with-claude claude login
-docker exec -it opencode-with-claude claude auth status
+docker exec -it -u opencode opencode-with-claude claude login
+docker exec -it -u opencode opencode-with-claude claude auth status
 
 # Run opencode commands inside the container
-docker exec -it opencode-with-claude opencode auth list
+docker exec -it -u opencode opencode-with-claude opencode auth list
 
 # Or use the convenience wrappers (symlink to your PATH)
 ln -s "$(pwd)/bin/claude" ~/.local/bin/claude
