@@ -1,99 +1,36 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import { spawn, type ChildProcess } from "child_process"
-import { createRequire } from "module"
 
-const DEFAULT_PORT = 3456
-const HEALTH_TIMEOUT_MS = 10_000
-const HEALTH_INTERVAL_MS = 100
-
-/**
- * Resolve the claude-max-proxy binary from this package's bundled dependency.
- */
-function resolveProxyBin(): string {
-  const require = createRequire(import.meta.url)
-  const proxyPkgPath = require.resolve(
-    "opencode-claude-max-proxy/package.json"
-  )
-  const proxyDir = proxyPkgPath.replace(/\/package\.json$/, "")
-  const proxyPkg = require(proxyPkgPath)
-  const binEntries = proxyPkg.bin
-  if (!binEntries || typeof binEntries !== "object") {
-    throw new Error(
-      "Could not find claude-max-proxy binary in opencode-claude-max-proxy package"
-    )
-  }
-  const binPath = Object.values(binEntries)[0] as string
-  if (!binPath) {
-    throw new Error("claude-max-proxy package has no bin entry")
-  }
-  return `${proxyDir}/${binPath}`
-}
-
-/**
- * Poll the proxy health endpoint until it responds OK or timeout.
- */
-async function waitForHealth(
-  port: number,
-  timeoutMs: number,
-  proxy: ChildProcess
-): Promise<void> {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    // Check if proxy process died
-    if (proxy.exitCode !== null) {
-      throw new Error(
-        "Claude Max proxy process exited unexpectedly. Is Claude authenticated? Run: claude login"
-      )
-    }
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/health`)
-      if (res.ok) return
-    } catch {
-      // Not ready yet
-    }
-    await new Promise((r) => setTimeout(r, HEALTH_INTERVAL_MS))
-  }
-  throw new Error(
-    `Claude Max proxy didn't become healthy within ${timeoutMs / 1000}s. Check: claude auth status`
-  )
-}
+import { createLogger } from "./logger.js"
+import { registerCleanup, startProxy } from "./proxy.js"
 
 /**
  * OpenCode plugin that manages the Claude Max proxy lifecycle.
  *
  * On init:
  *  1. Verifies the Claude CLI is installed and authenticated
- *  2. Resolves the bundled claude-max-proxy binary
- *  3. Spawns the proxy on a local port
- *  4. Waits for the proxy to become healthy
- *  5. Registers cleanup handlers to kill the proxy on exit
- *
- * Requires provider config in opencode.json to route API traffic through the proxy:
- *   "provider": { "anthropic": { "options": { "baseURL": "http://127.0.0.1:3456", "apiKey": "dummy" } } }
+ *  2. Starts the proxy (port 3456, or falls back to a random port if in use)
+ *  3. Registers cleanup handlers to stop the proxy on exit
+ *  4. Returns a `config` hook that injects the proxy's baseURL into
+ *     the Anthropic provider so each opencode instance gets its own proxy.
  */
 export const ClaudeMaxPlugin: Plugin = async ({ client, $, directory }) => {
-  const log = (level: "debug" | "info" | "warn" | "error", message: string) =>
-    client.app.log({
-      body: { service: "opencode-with-claude", level, message },
-    })
+  const log = createLogger(client)
 
-  // 1. Check claude CLI exists
+  // 1. Verify Claude CLI is installed
   try {
-    await $`which claude`
+    await $`claude --version`
   } catch {
     throw new Error(
       "Claude Code CLI not found. Install it with: npm install -g @anthropic-ai/claude-code"
     )
   }
 
-  // 2. Check authentication
+  // 2. Verify authentication
   let authOutput: string
   try {
     authOutput = await $`claude auth status`.text()
   } catch {
-    throw new Error(
-      "Failed to check Claude auth status. Run: claude login"
-    )
+    throw new Error("Failed to check Claude auth status. Run: claude login")
   }
 
   if (!authOutput.includes('"loggedIn": true')) {
@@ -102,64 +39,27 @@ export const ClaudeMaxPlugin: Plugin = async ({ client, $, directory }) => {
 
   await log("info", "Claude authentication verified")
 
-  // 3. Resolve proxy binary (bundled dependency)
-  let proxyBin: string
-  try {
-    proxyBin = resolveProxyBin()
-  } catch (err) {
-    throw new Error(
-      `Failed to resolve claude-max-proxy binary: ${err instanceof Error ? err.message : err}`
-    )
-  }
+  // 3. Start the proxy
+  const port =
+    parseInt(process.env.CLAUDE_PROXY_PORT || "", 10) || undefined
+  await log("info", "Starting Claude Max proxy...")
 
-  // 4. Pick port
-  const port = parseInt(process.env.CLAUDE_PROXY_PORT || "", 10) || DEFAULT_PORT
+  const proxy = await startProxy({ port, log })
 
-  // 5. Spawn proxy
-  await log("info", `Starting Claude Max proxy on port ${port}...`)
+  const baseURL = `http://127.0.0.1:${proxy.port}`
+  await log("info", `Claude Max proxy ready at ${baseURL}`)
 
-  const proxy: ChildProcess = spawn(proxyBin, [], {
-    env: {
-      ...process.env,
-      CLAUDE_PROXY_PORT: String(port),
-      CLAUDE_PROXY_PASSTHROUGH: "1",
-      CLAUDE_PROXY_WORKDIR: directory,
+  // 4. Register cleanup handlers
+  registerCleanup(proxy)
+
+  // 5. Configure the Anthropic provider to route through the proxy
+  return {
+    async config(input) {
+      input.provider ??= {}
+      input.provider.anthropic ??= {}
+      input.provider.anthropic.options ??= {}
+      input.provider.anthropic.options.baseURL = baseURL
+      input.provider.anthropic.options.apiKey = "claude-max-proxy"
     },
-    stdio: "ignore",
-    detached: false,
-  })
-
-  proxy.on("error", (err: Error) => {
-    log("error", `Proxy process error: ${err.message}`)
-  })
-
-  // 6. Wait for health
-  try {
-    await waitForHealth(port, HEALTH_TIMEOUT_MS, proxy)
-  } catch (err) {
-    // Kill the proxy if health check fails
-    try {
-      proxy.kill()
-    } catch {}
-    throw err
   }
-
-  await log("info", `Claude Max proxy ready on port ${port}`)
-
-  // 7. Cleanup on exit
-  let cleaned = false
-  const cleanup = () => {
-    if (cleaned) return
-    cleaned = true
-    try {
-      proxy.kill()
-    } catch {}
-  }
-  process.on("exit", cleanup)
-  process.on("SIGINT", cleanup)
-  process.on("SIGTERM", cleanup)
-
-  // No hooks needed -- proxy runs as a sidecar process.
-  // Provider config in opencode.json routes API traffic through the proxy.
-  return {}
 }
